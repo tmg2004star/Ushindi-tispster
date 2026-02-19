@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ushindi Tips - Ingia / Jisajili</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #f1c40f; 
+            --bg: #0f0f0f;
+            --card: #1a1a1a;
+            --text: #ffffff;
+            --gray: #b0b0b0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+
+        .auth-container {
+            background: var(--card); width: 100%; max-width: 500px;
+            padding: 30px; border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+            border: 1px solid #333;
+        }
+
+        .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 30px; }
+        .logo-box { width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; color: #000; }
+        .app-name { font-size: 24px; font-weight: 800; color: var(--primary); }
+
+        h2 { font-size: 20px; margin-bottom: 20px; text-align: center; color: var(--text); }
+        
+        .input-group { margin-bottom: 18px; position: relative; }
+        label { display: block; font-size: 13px; margin-bottom: 8px; color: var(--gray); }
+        
+        input {
+            width: 100%; padding: 16px; background: #252525; border: 1px solid #444;
+            border-radius: 15px; color: white; font-size: 15px; outline: none;
+            padding-right: 50px;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .toggle-password {
+            position: absolute; right: 15px; top: 42px; cursor: pointer; color: var(--gray); font-size: 18px; z-index: 10;
+        }
+
+        .btn {
+            width: 100%; padding: 16px; background: var(--primary); border: none;
+            border-radius: 15px; font-weight: bold; font-size: 16px; cursor: pointer;
+            color: #000; margin-top: 10px; transition: 0.3s;
+        }
+        .btn:disabled { background: #555; cursor: not-allowed; color: #888; }
+
+        .switch-box { 
+            text-align: center; margin-top: 25px; padding: 15px; 
+            border-top: 1px solid #333; font-size: 14px; 
+        }
+        .switch-btn { 
+            color: var(--primary); cursor: pointer; font-weight: bold; 
+            text-decoration: underline; padding: 10px; display: inline-block;
+        }
+
+        .hidden { display: none !important; }
+        .error-msg { color: #ff4757; font-size: 13px; text-align: center; margin-top: 10px; background: rgba(255, 71, 87, 0.1); padding: 10px; border-radius: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="brand">
+            <div class="logo-box"><i class="fas fa-trophy"></i></div>
+            <div class="app-name">Ushindi Tips</div>
+        </div>
+
+        <div id="signup-view">
+            <h2>Tengeneza Akaunti (Tipster)</h2>
+            <div class="input-group">
+                <label>Jina Kamili (Brand Name)</label>
+                <input type="text" id="reg-name" placeholder="Mfano: Master Bet">
+            </div>
+            <div class="input-group">
+                <label>Namba ya Simu</label>
+                <input type="tel" id="reg-phone" placeholder="+255...">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="reg-pass" placeholder="••••••••">
+                <i class="fas fa-eye toggle-password" onclick="togglePassword('reg-pass', this)"></i>
+            </div>
+            <button class="btn" id="btn-reg">JISAJILI KAMA TIPSTER</button>
+            <p class="error-msg" id="reg-error"></p>
+            <div class="switch-box">
+                <span style="color:#888;">Unayo akaunti?</span><br>
+                <span id="goto-login" class="switch-btn">INGIA HAPA</span>
+            </div>
+        </div>
+
+        <div id="login-view" class="hidden">
+            <h2>Karibu Tena Tipster</h2>
+            <div class="input-group">
+                <label>Namba ya Simu</label>
+                <input type="tel" id="login-phone" placeholder="+255...">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="login-pass" placeholder="••••••••">
+                <i class="fas fa-eye toggle-password" onclick="togglePassword('login-pass', this)"></i>
+            </div>
+            <button class="btn" id="btn-login">INGIA</button>
+            <p class="error-msg" id="login-error"></p>
+            <div class="switch-box">
+                <span style="color:#888;">Huna akaunti?</span><br>
+                <span id="goto-signup" class="switch-btn">JISAJILI SASA</span>
+            </div>
+        </div>
+
+        <div id="verify-view" class="hidden">
+            <h2>Thibitisha Namba</h2>
+            <p style="text-align:center; font-size:13px; color:#aaa; margin-bottom:20px;">Weka kodi tuliyokutumia kwenye SMS</p>
+            <div class="input-group">
+                <input type="number" id="otp-code" placeholder="000000" style="text-align:center; letter-spacing:5px; font-size: 24px;">
+            </div>
+            <button class="btn" id="btn-verify">THIBITISHA</button>
+            <p class="error-msg" id="verify-error"></p>
+            
+            <div style="text-align:center; margin-top:20px; font-size:13px;">
+                <span style="color:#888;">Hujapata kodi?</span>
+                <span id="btn-resend" style="color:var(--primary); cursor:pointer; font-weight:bold; margin-left:5px;">TUMA TENA</span>
+                <p id="resend-msg" style="color:#2ecc71; margin-top:5px; display:none; font-size:12px;">Kodi imetumwa tena!</p>
+            </div>
+        </div>
+    </div>
+  
+    <script>
+        const SUPABASE_URL = "https://hgszvjuzjwmogmnslzkg.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnc3p2anV6andtb2dtbnNsemtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTAyMDAsImV4cCI6MjA4NTcyNjIwMH0.aYxh_5KSuaJkI2kgdMbRGdntDuLu8-saYMUqkxm1GUE";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let tempPhone = "";
+        let tempName = ""; // Tunahifadhi jina ili kulitumia baada ya OTP
+
+        function togglePassword(inputId, icon) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") { input.type = "text"; icon.classList.replace("fa-eye", "fa-eye-slash"); } 
+            else { input.type = "password"; icon.classList.replace("fa-eye-slash", "fa-eye"); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('goto-login').onclick = () => showView('login-view');
+            document.getElementById('goto-signup').onclick = () => showView('signup-view');
+            document.getElementById('btn-reg').onclick = registerUser;
+            document.getElementById('btn-login').onclick = loginUser;
+            document.getElementById('btn-verify').onclick = verifyOTP;
+            document.getElementById('btn-resend').onclick = resendOTP;
+            checkSession();
+        });
+
+        function showView(viewId) {
+            ['signup-view', 'login-view', 'verify-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            document.querySelectorAll('.error-msg').forEach(e => e.style.display = 'none');
+        }
+
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                // Tipster akishalogin aende dashboard
+                window.location.href = "dashboard.html";
+            }
+        }
+
+        async function registerUser() {
+            const name = document.getElementById('reg-name').value;
+            const phone = document.getElementById('reg-phone').value.trim();
+            const password = document.getElementById('reg-pass').value;
+            const btn = document.getElementById('btn-reg');
+            
+            if (!name || !phone || !password) return alert("Jaza vyote!");
+
+            btn.disabled = true; btn.innerText = "Inatuma...";
+            tempPhone = phone;
+            tempName = name;
+
+            // Hapa tunatuma data ya ziada (metadata)
+            const { data, error } = await supabaseClient.auth.signUp({
+                phone: phone,
+                password: password,
+                options: {
+                    data: {
+                        full_name: name,
+                        role: 'tipster' // Hii ni muhimu kwa Trigger, lakini tutaifosi pia kwa mkono
+                    }
+                }
+            });
+
+            if (error) { 
+                console.error(error);
+                showError('reg-error', error.message); 
+                btn.disabled = false; btn.innerText = "JISAJILI KAMA TIPSTER"; 
+            }
+            else { showView('verify-view'); }
+        }
+
+        async function verifyOTP() {
+            const token = document.getElementById('otp-code').value;
+            const btn = document.getElementById('btn-verify');
+            btn.disabled = true; btn.innerText = "INAHAKIKI...";
+
+            const { data, error } = await supabaseClient.auth.verifyOtp({ phone: tempPhone, token: token, type: 'sms' });
+
+            if (error) { 
+                showError('verify-error', "Kodi imekosewa!"); 
+                btn.disabled = false; btn.innerText = "THIBITISHA";
+            } else { 
+                // --- HAPA NDIPO TUNAMLazimISHA KUINGIA KWENYE PROFILES ---
+                // Hata kama trigger ikifeli, hii itamwandika kwa nguvu.
+                if (data.user) {
+                    await supabaseClient.from('profiles').upsert([{
+                        id: data.user.id,
+                        full_name: tempName,
+                        phone_number: tempPhone,
+                        role: 'tipster', // MUHIMU: Tunampa cheo cha Tipster
+                        avatar_url: 'https://i.pravatar.cc/150?img=12' // Tunampa picha ya kuanzia (Placeholder)
+                    }]);
+                }
+                
+                alert("Karibu Tipster! Akaunti yako iko tayari.");
+                window.location.href = "dashboard.html"; 
+            }
+        }
+
+        async function loginUser() {
+            const phone = document.getElementById('login-phone').value.trim();
+            const password = document.getElementById('login-pass').value;
+            const btn = document.getElementById('btn-login');
+
+            btn.disabled = true; btn.innerText = "Inaingia...";
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ phone, password });
+
+            if (error) { showError('login-error', "Namba/Nenosiri limekosewa"); btn.disabled = false; btn.innerText = "INGIA"; }
+            else { window.location.href = "dashboard.html"; }
+        }
+
+        async function resendOTP() {
+            const btn = document.getElementById('btn-resend');
+            const msgEl = document.getElementById('resend-msg');
+            btn.style.pointerEvents = 'none'; btn.style.opacity = '0.5'; btn.innerText = "INATUMA...";
+
+            const { error } = await supabaseClient.auth.resend({ type: 'sms', phone: tempPhone });
+
+            if (error) { showError('verify-error', error.message); btn.innerText = "JARIBU TENA"; btn.style.pointerEvents = 'auto'; btn.style.opacity = '1'; } 
+            else {
+                msgEl.style.display = 'block'; btn.innerText = "IMETUMWA";
+                setTimeout(() => { msgEl.style.display = 'none'; btn.innerText = "TUMA TENA"; btn.style.pointerEvents = 'auto'; btn.style.opacity = '1'; }, 60000); 
+            }
+        }
+
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            el.innerText = msg; el.style.display = "block";
+        }
+    </script>
+</body>
+</html>

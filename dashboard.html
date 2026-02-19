@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tipster Pro | Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #e74c3c; --dark: #1a1a1a; --bg: #f4f7f6; --green: #2ecc71; --gray: #bdc3c7; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); min-height: 100vh; }
+
+        .app-header { background-color: var(--dark); color: white; padding: 15px 20px; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .menu-btn { font-size: 22px; cursor: pointer; margin-right: 20px; }
+        .app-title { font-size: 20px; font-weight: bold; }
+
+        .sidebar { position: fixed; top: 0; left: -100%; width: 280px; height: 100%; background: white; z-index: 1000; transition: 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .sidebar.active { left: 0; }
+        .profile-section { background: var(--dark); padding: 40px 20px; text-align: center; color: white; }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 3px solid white; object-fit: cover; margin-bottom: 10px; cursor: pointer; }
+        
+        /* Kamera icon ya kubadili picha */
+        .camera-icon { position: absolute; bottom: 15px; right: 0; background: var(--primary); color: white; border-radius: 50%; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 12px; border: 2px solid var(--dark); }
+        
+        .profile-name { font-weight: bold; font-size: 18px; display: block; margin-bottom: 5px; text-transform: capitalize; }
+        
+        .menu-list { list-style: none; padding: 10px 0; flex: 1; overflow-y: auto; }
+        .menu-list li { padding: 15px 25px; font-size: 15px; color: #333; cursor: pointer; display: flex; align-items: center; transition: 0.2s; }
+        .menu-list li i { width: 30px; font-size: 18px; color: #555; }
+        .logout-btn { padding: 20px; border-top: 1px solid #eee; color: var(--primary); font-weight: bold; cursor: pointer; display: flex; align-items: center; }
+
+        .overlay-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 900; display: none; }
+        .overlay-bg.active { display: block; }
+
+        .main-content { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 100px; }
+        .section-header { font-size: 14px; color: #7f8c8d; margin-bottom: 10px; font-weight: 600; display: flex; justify-content: space-between; }
+
+        .balance-card { background: white; padding: 25px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .balance-label { color: #bdc3c7; font-size: 14px; }
+        .balance-amount { font-size: 20px; font-weight: bold; color: #7f8c8d; }
+        .btn-withdraw-mini { background: var(--dark); color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; border: none; cursor: pointer; margin-left: 10px; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; display: flex; flex-direction: column; justify-content: center; height: 100px; }
+        .stat-label { font-size: 12px; color: #bdc3c7; margin-bottom: 10px; }
+        .stat-value { font-size: 22px; font-weight: bold; color: #2c3e50; }
+
+        #active-bets-list {
+            display: flex; overflow-x: auto; gap: 15px; padding-bottom: 10px; 
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        #active-bets-list::-webkit-scrollbar { display: none; }
+        #active-bets-list .mkeka-card { min-width: 280px; flex-shrink: 0; margin-bottom: 0; }
+
+        .mkeka-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-bottom: 1px solid #eee; margin-bottom: 15px; }
+        .mkeka-top { padding: 15px; }
+        .mkeka-date { font-size: 14px; font-weight: bold; color: #bdc3c7; display: block; text-align: center; width: 100%; margin-bottom: 10px; }
+        .mkeka-details { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .price-text { font-size: 16px; font-weight: bold; color: #000; }
+        .odds-box { background: #1a1a1a; color: white; padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 60px; }
+        .odds-val { font-size: 16px; font-weight: bold; display: block; }
+        
+        .mkeka-footer { padding: 10px 15px; background: #fff; border-top: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+        .company-badge { display: flex; align-items: center; background: #e74c3c; color: white; padding: 4px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; }
+        .company-logo { width: 45px; height: 45px; object-fit: contain; margin-right: 8px; border-radius: 4px; background: white; }
+        
+        .status-badge { font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+        .status-pending { background: #f39c12; color: white; }
+        .status-won { background: #2ecc71; color: white; }
+        .status-lost { background: #e74c3c; color: white; }
+
+        .mkeka-preview-img { width: 100%; height: 160px; object-fit: cover; cursor: pointer; border-bottom: 1px solid #eee; transition: opacity 0.3s; }
+        .mkeka-preview-img:hover { opacity: 0.9; }
+
+        .fab-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #27ae60; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 28px; box-shadow: 0 4px 15px rgba(39,174,96,0.4); cursor: pointer; z-index: 99; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; overflow-y: auto; }
+        .modal-content { background: #f4f7f6; width: 100%; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; }
+        .modal-header { display: flex; align-items: center; margin-bottom: 20px; }
+        .back-btn { font-size: 24px; margin-right: 15px; cursor: pointer; color: #333; }
+        
+        label { font-weight: bold; font-size: 14px; color: #34495e; margin-top: 15px; display: block; }
+        input { width: 100%; padding: 14px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: white; }
+        
+        .company-row { background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .company-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .company-info { display: flex; align-items: center; gap: 10px; font-weight: bold; color: #333; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--gray); transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--green); }
+        input:checked + .slider:before { transform: translateX(24px); }
+        
+        .code-input-container { margin-top: 10px; display: none; }
+        
+        .btn-green { width: 100%; padding: 16px; background: #27ae60; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 18px; margin-top: 30px; cursor: pointer; }
+        
+        .info-box { background: rgba(46, 204, 113, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(46, 204, 113, 0.3); }
+        .info-box i { color: #27ae60; font-size: 20px; margin-bottom: 5px; }
+        .info-box p { color: #333; font-size: 13px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay-bg" id="overlay" onclick="toggleMenu()"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="profile-section">
+            <div style="position: relative; display: inline-block;">
+                <img src="https://i.pravatar.cc/150?img=11" id="sidebar-avatar" class="profile-img" onclick="document.getElementById('profile-pic-input').click()" title="Gusa kubadili picha">
+                <div class="camera-icon" onclick="document.getElementById('profile-pic-input').click()">
+                    <i class="fas fa-camera"></i>
+                </div>
+            </div>
+            
+            <input type="file" id="profile-pic-input" hidden accept="image/*" onchange="uploadProfilePic(event)">
+            
+            <span class="profile-name" id="sidebar-name">Tipster</span>
+            <small style="color:#bbb;">Pro Tipster</small>
+            
+            <p id="profile-upload-status" style="font-size: 11px; color: var(--primary); display: none; margin-top: 5px;">Inapakia picha...</p>
+        </div>
+        
+        <ul class="menu-list">
+            <li onclick="toggleMenu()"><i class="fas fa-chart-line"></i> Dashboard</li>
+            <li onclick="funguaModal()"><i class="fas fa-plus-circle"></i> Tengeneza Mkeka</li>
+            <li><i class="fas fa-shield-alt"></i> Sera ya Faragha</li>
+            <li><i class="fas fa-file-contract"></i> Masharti</li>
+            <li><i class="fas fa-headset"></i> Msaada</li>
+            <li><i class="fas fa-share-alt"></i> Share App</li>
+            <li><i class="fas fa-info-circle"></i> Kuhusu Sisi</li>
+        </ul>
+        <div class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</div>
+    </div>
+
+    <header class="app-header">
+        <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></div>
+        <div class="app-title">Dashboard</div>
+    </header>
+
+    <div class="main-content">
+        <div class="section-header">Overview</div>
+        <div class="balance-card">
+            <div><span class="balance-label">Salio Lako (40%)</span><br><span class="balance-amount" id="dash-balance">0.00</span></div>
+            <button class="btn-withdraw-mini" onclick="funguaWithdrawModal()">TOA HELA</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card"><span class="stat-label">Jumla ya Mikeka</span><span class="stat-value" id="dash-bets">0</span></div>
+            <div class="stat-card"><span class="stat-label">Mikeka Iliyoshinda</span><span class="stat-value" style="color:#2ecc71;" id="dash-won">0</span></div>
+            <div class="stat-card"><span class="stat-label">Mauzo (TZS)</span><span class="stat-value" id="dash-sales">0</span></div>
+            <div class="stat-card"><span class="stat-label">Iliyochanika</span><span class="stat-value" style="color:#e74c3c;" id="dash-lost">0</span></div>
+        </div>
+
+        <div class="section-header">Mikeka Iliyo Hewani <small style="color:#2ecc71">Inaendelea</small></div>
+        <div id="active-bets-list">
+            <p style="padding:20px; color:#999;">Hakuna mikeka hewani.</p>
+        </div>
+
+        <div class="section-header" style="margin-top:30px;">Mikeka Iliyopita <small>Matokeo</small></div>
+        <div id="recent-bets-list">
+            <p style="text-align:center; color:#999; margin-top:20px;">Hakuna historia.</p>
+        </div>
+    </div>
+
+    <div class="fab-btn" onclick="funguaModal()"><i class="fas fa-plus"></i></div>
+
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header"><i class="fas fa-arrow-left back-btn" onclick="fungaModal()"></i><h3>Weka Mkeka Mpya</h3></div>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Odds</label><input type="number" step="0.01" id="inp-odds" placeholder="6.15"></div>
+                <div style="flex:1;"><label>Stake (Tsh)</label><input type="number" id="inp-price" placeholder="1000"></div>
+            </div>
+            <label>Muda wa Kuanza</label><input type="datetime-local" id="inp-datetime">
+            
+            <label style="margin-bottom:10px; display:block;">Chagua Kampuni & Weka Code</label>
+            <div class="company-list">
+                <div class="company-row">
+                    <div class="company-top">
+                        <div class="company-info"><img src="sporty bet.PNG" class="company-logo"> SportyBet</div>
+                        <label class="switch"><input type="checkbox" onchange="toggleCodeInput(this, 'code-sporty')"><span class="slider"></span></label>
+                    </div>
+                    <div class="code-input-container" id="code-sporty"><input type="text" placeholder="Code ya SportyBet" id="val-sporty"></div>
+                </div>
+                <div class="company-row">
+                    <div class="company-top">
+                        <div class="company-info"><img src="bet pawa.PNG" class="company-logo"> Betpawa</div>
+                        <label class="switch"><input type="checkbox" onchange="toggleCodeInput(this, 'code-betpawa')"><span class="slider"></span></label>
+                    </div>
+                    <div class="code-input-container" id="code-betpawa"><input type="text" placeholder="Code ya Betpawa" id="val-betpawa"></div>
+                </div>
+                <div class="company-row">
+                    <div class="company-top">
+                        <div class="company-info"><img src="sport pesa.PNG" class="company-logo"> Sportpesa</div>
+                        <label class="switch"><input type="checkbox" onchange="toggleCodeInput(this, 'code-sportpesa')"><span class="slider"></span></label>
+                    </div>
+                    <div class="code-input-container" id="code-sportpesa"><input type="text" placeholder="Code ya Sportpesa" id="val-sportpesa"></div>
+                </div>
+                <div class="company-row">
+                    <div class="company-top">
+                        <div class="company-info"><img src="betway.PNG" class="company-logo"> Betway</div>
+                        <label class="switch"><input type="checkbox" onchange="toggleCodeInput(this, 'code-betway')"><span class="slider"></span></label>
+                    </div>
+                    <div class="code-input-container" id="code-betway"><input type="text" placeholder="Code ya Betway" id="val-betway"></div>
+                </div>
+                <div class="company-row">
+                    <div class="company-top">
+                        <div class="company-info"><img src="betika.PNG" class="company-logo"> Betika</div>
+                        <label class="switch"><input type="checkbox" onchange="toggleCodeInput(this, 'code-betika')"><span class="slider"></span></label>
+                    </div>
+                    <div class="code-input-container" id="code-betika"><input type="text" placeholder="Code ya Betika" id="val-betika"></div>
+                </div>
+                <div class="company-row">
+                    <div class="company-top">
+                        <div class="company-info"><img src="soka bet.PNG" class="company-logo"> Sokabet</div>
+                        <label class="switch"><input type="checkbox" onchange="toggleCodeInput(this, 'code-sokabet')"><span class="slider"></span></label>
+                    </div>
+                    <div class="code-input-container" id="code-sokabet"><input type="text" placeholder="Code ya Sokabet" id="val-sokabet"></div>
+                </div>
+            </div>
+
+            <label>Picha ya Mkeka</label>
+            <div style="border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 10px; background: white;" onclick="document.getElementById('file-input').click()">
+                <p id="file-msg">📸 Gusa kuweka Picha</p>
+                <input type="file" id="file-input" hidden onchange="checkFile()">
+            </div>
+            <button class="btn-green" id="btn-submit" onclick="uploadToSupabase()">TUMA KWA ADMIN</button>
+        </div>
+    </div>
+
+    <div class="modal" id="withdrawModal">
+        <div class="modal-content">
+            <div class="modal-header"><i class="fas fa-arrow-left back-btn" onclick="fungaWithdrawModal()"></i><h3>Toa Hela (40%)</h3></div>
+            <p style="text-align:center; color:#555; margin-bottom: 20px;">Kiasi kinachoruhusiwa kutoa: <br><strong style="font-size: 24px;"><span id="withdraw-max">0</span></strong></p>
+            
+            <div class="info-box">
+                <i class="fas fa-shield-alt"></i>
+                <p>Usalama wa akaunti yako umezingatiwa. Pesa itatumwa moja kwa moja kwenye namba uliyotumia kujisajili.</p>
+            </div>
+
+            <label>Kiasi unachotaka kutoa (Tsh)</label>
+            <input type="number" id="withdraw-amount" placeholder="Mfano: 5000">
+            
+            <button class="btn-green" style="background: var(--dark);" onclick="processWithdrawal()">TUMA OMBI LAKO</button>
+        </div>
+    </div>
+
+   <script>
+        const SUPABASE_URL = "https://hgszvjuzjwmogmnslzkg.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnc3p2anV6andtb2dtbnNsemtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTAyMDAsImV4cCI6MjA4NTcyNjIwMH0.aYxh_5KSuaJkI2kgdMbRGdntDuLu8-saYMUqkxm1GUE";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const companyLogos = { 'SportyBet': 'sporty bet.PNG', 'Betpawa': 'bet pawa.PNG', 'Sportpesa': 'sport pesa.PNG', 'Betway': 'betway.PNG', 'Betika': 'betika.PNG', 'Sokabet': 'soka bet.PNG' };
+        let currentBalance = 0;
+
+        function toggleMenu() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
+        function funguaModal() { document.getElementById('uploadModal').style.display = 'block'; }
+        function fungaModal() { document.getElementById('uploadModal').style.display = 'none'; }
+        function funguaWithdrawModal() { document.getElementById('withdrawModal').style.display = 'block'; document.getElementById('withdraw-max').innerText = currentBalance.toLocaleString() + "/="; }
+        function fungaWithdrawModal() { document.getElementById('withdrawModal').style.display = 'none'; }
+        
+        function toggleCodeInput(checkbox, divId) { document.getElementById(divId).style.display = checkbox.checked ? 'block' : 'none'; }
+        function checkFile() { let file = document.getElementById('file-input').files[0]; if(file) document.getElementById('file-msg').innerText = "✅ " + file.name; }
+        function formatMyDate(d) { return new Date(d).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}); }
+
+        async function logout() { await supabaseClient.auth.signOut(); window.location.href = "tip.html"; }
+
+        // --- HII NI FUNCTION MPYA YA KUPAKIA PICHA YA PROFILE ---
+        async function uploadProfilePic(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusText = document.getElementById('profile-upload-status');
+            const avatarImg = document.getElementById('sidebar-avatar');
+            
+            statusText.style.display = 'block';
+            statusText.innerText = 'Inapakia picha...';
+            statusText.style.color = '#f1c40f'; // Rangi ya Njano (Loading)
+
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if(!user) throw new Error("Hujalogin kikamilifu.");
+
+                // 1. Pakia picha kwenye Supabase Storage (kwenye folder la avatars)
+                const fileName = `tipster_${user.id}_${Date.now()}.${file.name.split('.').pop()}`;
+                const { error: uploadError } = await supabaseClient.storage.from('avatars').upload(fileName, file);
+                
+                if (uploadError) throw uploadError;
+
+                // 2. Chukua Link (URL) ya hiyo picha mpya
+                const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(fileName);
+                const newAvatarUrl = urlData.publicUrl;
+
+                // 3. Weka Link hiyo kwenye Profile ya huyu Tipster kwenye Database
+                const { error: dbError } = await supabaseClient.from('profiles').update({ avatar_url: newAvatarUrl }).eq('id', user.id);
+                
+                if (dbError) throw dbError;
+
+                // 4. Badilisha picha kwenye kioo (UI) mara moja
+                avatarImg.src = newAvatarUrl;
+                statusText.innerText = 'Picha imebadilishwa ✅';
+                statusText.style.color = 'var(--green)';
+                
+                // Poteza ule ujumbe baada ya sekunde 3
+                setTimeout(() => { statusText.style.display = 'none'; }, 3000);
+
+            } catch (error) {
+                console.error(error);
+                statusText.innerText = 'Kosa: ' + error.message;
+                statusText.style.color = 'var(--primary)';
+                setTimeout(() => { statusText.style.display = 'none'; }, 4000);
+            }
+        }
+
+        // --- 1. TUMA MKEKA MPYA (VISIBLE: FALSE) ---
+        async function uploadToSupabase() {
+            const btn = document.getElementById('btn-submit');
+            btn.innerText = "Inatuma..."; btn.disabled = true;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if(!user) return alert("Login kwanza!");
+
+            const odds = document.getElementById('inp-odds').value;
+            const price = document.getElementById('inp-price').value;
+            const datetime = document.getElementById('inp-datetime').value;
+            const file = document.getElementById('file-input').files[0];
+
+            if(!odds || !price || !datetime || !file) { alert("Jaza kila kitu!"); btn.innerText = "POST MKEKA"; btn.disabled = false; return; }
+
+            try {
+                const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+                const { error: upErr } = await supabaseClient.storage.from('mikeka-files').upload(fileName, file);
+                if(upErr) throw upErr;
+                const { data: urlData } = supabaseClient.storage.from('mikeka-files').getPublicUrl(fileName);
+
+                const { error: dbErr } = await supabaseClient.from('mikeka').insert([{
+                    user_id: user.id,
+                    odds: odds, price: price, start_datetime: datetime,
+                    code_sportybet: document.getElementById('val-sporty').value,
+                    code_betpawa: document.getElementById('val-betpawa').value,
+                    code_sportpesa: document.getElementById('val-sportpesa').value,
+                    code_betway: document.getElementById('val-betway').value,
+                    code_betika: document.getElementById('val-betika').value,
+                    code_sokabet: document.getElementById('val-sokabet').value,
+                    file_url: urlData.publicUrl,
+                    visible: false, // INASUBIRI ADMIN A-APPROVE
+                    status: 'PENDING'
+                }]);
+
+                if(dbErr) throw dbErr;
+                alert("Mkeka umetumwa kwa Admin kuhakikiwa!"); fungaModal(); loadData(); btn.innerText = "TUMA KWA ADMIN"; btn.disabled = false;
+            } catch (err) { alert("Error: " + err.message); btn.innerText = "TUMA KWA ADMIN"; btn.disabled = false; }
+        }
+
+        // --- 2. VUTA DATA ZAKO ---
+        async function loadData() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if(!user) { window.location.href = "tip.html"; return; }
+
+            let fullName = user.user_metadata?.full_name || "Tipster";
+            let avatarUrl = "https://i.pravatar.cc/150?img=11"; 
+            const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).maybeSingle();
+            if(profile) { fullName = profile.full_name || fullName; avatarUrl = profile.avatar_url || avatarUrl; }
+            
+            document.getElementById('sidebar-name').innerText = fullName;
+            document.getElementById('sidebar-avatar').src = avatarUrl; // INAWEKA PICHA SAHIHI KUTOKA KWENYE DATABASE
+
+            // Vuta mikeka ya huyu Tipster tu
+            const { data: mikeka } = await supabaseClient.from('mikeka').select('*').eq('user_id', user.id).order('created_at', {ascending:false});
+            const { data: withdrawals } = await supabaseClient.from('withdrawals').select('amount').eq('user_id', user.id).eq('status', 'PAID');
+
+            let totalWithdrawn = 0;
+            if(withdrawals) withdrawals.forEach(w => totalWithdrawn += Number(w.amount));
+
+            if(mikeka) {
+                const activeList = document.getElementById('active-bets-list');
+                const recentList = document.getElementById('recent-bets-list');
+                activeList.innerHTML = ""; recentList.innerHTML = "";
+                
+                let totalSales = 0; let wonCount = 0; let lostCount = 0;
+                const now = new Date().toISOString();
+
+                mikeka.forEach(m => {
+                    totalSales += Number(m.total_sales_amount || 0);
+                    if(m.status === 'WON') wonCount++;
+                    if(m.status === 'LOST') lostCount++;
+
+                    let company = m.code_sportybet ? "SportyBet" : m.code_betpawa ? "Betpawa" : m.code_sportpesa ? "Sportpesa" : m.code_betway ? "Betway" : m.code_betika ? "Betika" : m.code_sokabet ? "Sokabet" : "SportyBet";
+                    let logo = companyLogos[company] || companyLogos['SportyBet'];
+                    
+                    // BEJI ZA ADMIN (Hewani au Inasubiri)
+                    let approvalBadge = m.visible ? 
+                        `<span style="background:var(--green); color:white; padding:2px 6px; border-radius:4px; font-size:10px;">HEWANI ✅</span>` : 
+                        `<span style="background:#f39c12; color:white; padding:2px 6px; border-radius:4px; font-size:10px;">INASUBIRI ⏳</span>`;
+
+                    let statusLabel = `<span class="status-badge status-pending">${m.status || 'PENDING'}</span>`;
+                    if(m.status === 'WON') statusLabel = `<span class="status-badge status-won">WON</span>`;
+                    if(m.status === 'LOST') statusLabel = `<span class="status-badge status-lost">LOST</span>`;
+
+                    const cardHTML = `
+                        <div class="mkeka-card">
+                            ${m.file_url ? `<img src="${m.file_url}" class="mkeka-preview-img" onclick="window.open(this.src)" title="Bonyeza kuona kubwa">` : ''}
+                            <div class="mkeka-top">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                    ${approvalBadge} <span style="font-size:12px; color:#aaa;">${formatMyDate(m.start_datetime)}</span>
+                                </div>
+                                <div class="mkeka-details"><span class="price-text">TZS ${m.price}/=</span><div class="odds-box"><span class="odds-val">${m.odds}</span><span class="odds-lbl">Odds</span></div></div>
+                            </div>
+                            <div class="mkeka-footer"><span class="company-badge"><img src="${logo}" class="company-logo"> ${company}</span>${statusLabel}</div>
+                        </div>`;
+
+                    if (m.start_datetime > now && m.status === 'PENDING') activeList.innerHTML += cardHTML;
+                    else recentList.innerHTML += cardHTML;
+                });
+
+                if(activeList.innerHTML === "") activeList.innerHTML = '<p style="padding:20px; color:#999;">Hakuna mikeka hewani.</p>';
+                if(recentList.innerHTML === "") recentList.innerHTML = '<p style="text-align:center; color:#999; margin-top:20px;">Hakuna historia.</p>';
+
+                currentBalance = (totalSales * 0.40) - totalWithdrawn;
+                document.getElementById('dash-balance').innerText = currentBalance.toLocaleString();
+                document.getElementById('dash-bets').innerText = mikeka.length;
+                document.getElementById('dash-sales').innerText = totalSales.toLocaleString();
+                document.getElementById('dash-won').innerText = wonCount;
+                document.getElementById('dash-lost').innerText = lostCount;
+            }
+        }
+
+        async function processWithdrawal() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            const phone = user.phone; 
+            const amount = Number(document.getElementById('withdraw-amount').value);
+            if(!phone) return alert("Kosa: Namba ya simu haipatikani.");
+            if(amount > currentBalance) return alert("Huna salio la kutosha!");
+            if(amount < 1000) return alert("Kiwango cha chini ni 1000/=");
+            
+            const btn = document.querySelector('#withdrawModal .btn-green');
+            btn.innerText = "INATUMA OMBI..."; btn.disabled = true;
+
+            const { error } = await supabaseClient.from('withdrawals').insert([{ user_id: user.id, amount: amount, phone_number: phone, status: 'PENDING' }]);
+            if(!error) { alert("Ombi la kutoa hela limetumwa kikamilifu!"); fungaWithdrawModal(); document.getElementById('withdraw-amount').value = ""; loadData(); } 
+            else { alert("Kosa: " + error.message); }
+            btn.innerText = "TUMA OMBI LAKO"; btn.disabled = false;
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

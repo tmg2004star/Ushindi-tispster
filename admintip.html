@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tipster Pro | Admin Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #f1c40f; --success: #2ecc71; --danger: #e74c3c; --dark-bg: #0f0f0f; --card-bg: #1a1a1a; --text-white: #ffffff; --text-gray: #a0a0a0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-white); padding-bottom: 80px; }
+        .top-bar { background: var(--card-bg); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); position: sticky; top: 0; z-index: 100; }
+        .admin-content { padding: 20px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: var(--card-bg); padding: 20px; border-radius: 15px; border-left: 4px solid var(--primary); }
+        .stat-label { font-size: 12px; color: var(--text-gray); text-transform: uppercase; }
+        .stat-value { font-size: 20px; font-weight: bold; margin-top: 5px; color: var(--text-white); }
+        .stat-value.mine { color: var(--success); }
+
+        .req-card { background: #222; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #333; position: relative; }
+        .req-info { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        .bet-codes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #111; padding: 10px; border-radius: 8px; font-size: 12px; margin-top: 10px; }
+        .bet-code-item { display: flex; justify-content: space-between; color: #ccc; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .bet-img-preview { width: 100%; height: 200px; object-fit: contain; border-radius: 8px; border: 1px solid #444; margin-bottom: 10px; background: #000; cursor: pointer; }
+        
+        .req-actions { display: grid; grid-template-columns: 1fr; gap: 10px; width: 100%; margin-top: 10px; }
+        .btn-sm { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 5px; transition: 0.3s; }
+        .btn-sm:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-approve { background: var(--success); color: white; } 
+        .btn-reject { background: var(--danger); color: white; }   
+        .btn-delete { background: #333; color: white; margin-top: 5px; width: 100%; }
+
+        .status-badge { position: absolute; top: 10px; right: 10px; font-size: 10px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+
+        .upload-container { border: 2px dashed #444; border-radius: 15px; padding: 30px; text-align: center; cursor: pointer; transition: 0.3s; background: #151515; margin-bottom: 20px; }
+        .preview-box { width: 100%; height: 180px; border-radius: 12px; background: #222; margin-top: 15px; display: none; overflow: hidden; }
+        .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+        .btn-upload { width: 100%; padding: 15px; background: var(--primary); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .avatar-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        .avatar-item { aspect-ratio: 1/1; background: #333; border-radius: 50%; overflow: hidden; position: relative; }
+        .avatar-item img { width: 100%; height: 100%; object-fit: cover; }
+        .del-btn { position: absolute; top: 0; right: 0; background: var(--danger); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; }
+
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--card-bg); display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #333; z-index: 1000; overflow-x: auto; }
+        .nav-item { text-align: center; color: var(--text-gray); cursor: pointer; font-size: 11px; padding: 0 10px; min-width: 60px; }
+        .nav-item i { font-size: 18px; display: block; margin-bottom: 4px; }
+        .nav-item.active { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <h2>Admin Pro</h2>
+        <i class="fas fa-user-shield" style="color: var(--primary); font-size: 20px;"></i>
+    </div>
+
+    <div class="admin-content">
+        
+        <div id="finance-tab" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Jumla ya Mapato</span>
+                    <div class="stat-value" id="total-revenue">0.00</div>
+                </div>
+                <div class="stat-card" style="border-left-color: var(--success);">
+                    <span class="stat-label">Admin (60%)</span>
+                    <div class="stat-value mine" id="admin-balance">0.00</div>
+                </div>
+                <div class="stat-card" style="border-left-color: var(--text-gray);">
+                    <span class="stat-label">Tipsters (40%)</span>
+                    <div class="stat-value" id="tipster-balance">0.00</div>
+                </div>
+            </div>
+            <h3 style="margin-bottom:15px; font-size:16px;">Maombi ya Kutoa Hela</h3>
+            <div id="withdrawal-list"><p style="color:#555; text-align:center;">Inatafuta maombi...</p></div>
+        </div>
+
+        <div id="bets-tab" class="tab-content">
+            <h3 style="margin-bottom:15px; font-size:16px;">Ruhusu Mikeka (Mipya)</h3>
+            <p style="color: var(--text-gray); font-size: 12px; margin-bottom: 15px;">Hapa ni mikeka ijayo. Hakiki na uruhusu iende hewani.</p>
+            <div id="mikeka-list"><p style="text-align:center; color:#555;">Inavuta mikeka...</p></div>
+        </div>
+
+        <div id="results-tab" class="tab-content">
+            <h3 style="margin-bottom:15px; font-size:16px;">Weka Matokeo (Iliyoisha)</h3>
+            <p style="color: var(--text-gray); font-size: 12px; margin-bottom: 15px;">Hii ni mikeka ambayo muda wake umepita. Weka TIKI au CHANIKA.</p>
+            <div id="expired-list"><p style="text-align:center; color:#555;">Inatafuta mikeka iliyoisha...</p></div>
+        </div>
+
+        <div id="avatar-tab" class="tab-content">
+            <h3>Pakia Avatar</h3>
+            <div class="upload-container" onclick="document.getElementById('avatar-input').click()">
+                <i class="fas fa-user-circle"></i><p id="avatar-text">Chagua Avatar</p>
+                <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="handlePreview(event, 'avatar')">
+                <div id="avatar-preview-box" class="preview-box"><img id="avatar-preview-img" src=""></div>
+            </div>
+            <button class="btn-upload" id="avatar-save-btn" onclick="uploadToSupabase('avatar')">WEKA KWENYE POOL</button>
+            <div class="avatar-preview-grid" id="avatar-pool-display"></div>
+        </div>
+
+        <div id="ads-tab" class="tab-content">
+            <h3>Pakia Tangazo</h3>
+             <div class="upload-container" onclick="document.getElementById('ad-input').click()">
+                <i class="fas fa-images"></i><p id="ad-text">Chagua Tangazo</p>
+                <input type="file" id="ad-input" accept="image/*" style="display: none;" onchange="handlePreview(event, 'ad')">
+                <div id="ad-preview-box" class="preview-box"><img id="ad-preview-img" src=""></div>
+            </div>
+            <button class="btn-upload" id="ad-save-btn" onclick="uploadToSupabase('ad')">PAKIA TANGAZO</button>
+            
+            <h3 style="margin-top:20px;">Matangazo Yaliyopo</h3>
+            <div class="avatar-preview-grid" id="ads-pool-display"></div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('finance-tab', this)"><i class="fas fa-wallet"></i><span>Fedha</span></div>
+        <div class="nav-item" onclick="switchTab('bets-tab', this)"><i class="fas fa-receipt"></i><span>Mikeka</span></div>
+        <div class="nav-item" onclick="switchTab('results-tab', this)"><i class="fas fa-trophy"></i><span>Matokeo</span></div>
+        <div class="nav-item" onclick="switchTab('avatar-tab', this)"><i class="fas fa-user-plus"></i><span>Avatars</span></div>
+        <div class="nav-item" onclick="switchTab('ads-tab', this)"><i class="fas fa-images"></i><span>Ads</span></div>
+    </nav>
+
+    <script>
+        const SUPABASE_URL = "https://hgszvjuzjwmogmnslzkg.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnc3p2anV6andtb2dtbnNsemtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTAyMDAsImV4cCI6MjA4NTcyNjIwMH0.aYxh_5KSuaJkI2kgdMbRGdntDuLu8-saYMUqkxm1GUE";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentFile = null;
+
+        // --- 1. FINANCE ---
+        async function fetchFinanceStats() {
+            const { data: salesData } = await supabaseClient.from('mikeka').select('total_sales_amount');
+            if (salesData) {
+                let total = 0;
+                salesData.forEach(item => total += Number(item.total_sales_amount || 0));
+                document.getElementById('total-revenue').innerText = `TZS ${total.toLocaleString()}`;
+                document.getElementById('admin-balance').innerText = `TZS ${(total * 0.60).toLocaleString()}`;
+                document.getElementById('tipster-balance').innerText = `TZS ${(total * 0.40).toLocaleString()}`;
+            }
+        }
+
+        async function fetchWithdrawals() {
+            const { data } = await supabaseClient.from('withdrawals').select('*').eq('status', 'PENDING').order('created_at', { ascending: false });
+            const list = document.getElementById('withdrawal-list');
+            if (data && data.length > 0) {
+                list.innerHTML = data.map(req => `
+                    <div class="req-card">
+                        <div class="req-info">
+                            <div><small style="color:var(--primary)">User: ${req.user_id.substring(0,6)}...</small>
+                            <h4 style="margin:5px 0;">${Number(req.amount).toLocaleString()} TZS</h4>
+                            <div style="color:var(--text-gray); font-size:13px;"><i class="fas fa-phone"></i> ${req.phone_number}</div></div>
+                        </div>
+                        <div class="req-actions" style="grid-template-columns: 1fr 1fr;">
+                            <button class="btn-sm btn-approve" onclick="updateWithdrawal('${req.id}', 'PAID', ${req.amount}, '${req.phone_number}', this)">LIPA (M-PESA)</button>
+                            <button class="btn-sm btn-reject" onclick="updateWithdrawal('${req.id}', 'REJECTED', null, null, this)">KATAA</button>
+                        </div>
+                    </div>`).join('');
+            } else { list.innerHTML = `<p style="color:#555; text-align:center;">Hakuna maombi mapya.</p>`; }
+        }
+
+        async function updateWithdrawal(id, newStatus, amount, phone, btnElement) {
+            if (newStatus === 'PAID') {
+                if(!confirm(`Je, una uhakika unataka kumlipa TZS ${amount.toLocaleString()} kwenye namba ${phone}?`)) return;
+
+                const originalText = btnElement.innerText;
+                btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> INATUMA...`;
+                btnElement.disabled = true;
+
+                try {
+                    const { data, error } = await supabaseClient.functions.invoke('lipa-tipster', { body: { kiasi: amount, nambaYaSimu: phone } });
+                    if (error) throw error;
+
+                    if (data && data.output_ResponseCode === "INS-0") {
+                        await supabaseClient.from('withdrawals').update({ status: 'PAID' }).eq('id', id);
+                        alert("Pesa imetumwa kikamilifu kwa Tipster!");
+                        fetchWithdrawals(); fetchFinanceStats();
+                    } else { alert("Muamala umeshindikana: " + (data?.output_ResponseDesc || "Tatizo la mtandao")); }
+                } catch (err) { alert("Kosa: " + err.message); } 
+                finally { btnElement.innerText = originalText; btnElement.disabled = false; }
+            } else {
+                if(!confirm("Una uhakika unataka kukataa ombi hili?")) return;
+                btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> INAKATAA...`;
+                btnElement.disabled = true;
+                await supabaseClient.from('withdrawals').update({ status: newStatus }).eq('id', id);
+                alert("Ombi limekataliwa!"); fetchWithdrawals();
+            }
+        }
+
+        // --- 2. MIKEKA MIPYA (PENDING APPROVAL) ---
+        async function fetchPendingBets() {
+            const now = new Date().toISOString();
+            const { data } = await supabaseClient
+                .from('mikeka')
+                .select('*, profiles(full_name, phone_number)')
+                .gt('start_datetime', now)
+                .order('created_at', { ascending: false });
+
+            const list = document.getElementById('mikeka-list');
+            
+            if (data && data.length > 0) {
+                list.innerHTML = data.map(mkeka => {
+                    const isVisible = mkeka.visible === true;
+                    const tipsterName = mkeka.profiles && mkeka.profiles.full_name ? mkeka.profiles.full_name : "Tipster Asiyejulikana";
+                    
+                    return `
+                    <div class="req-card" style="border-left: 4px solid ${isVisible ? 'var(--success)' : '#f39c12'}">
+                        ${mkeka.file_url ? `<img src="${mkeka.file_url}" class="bet-img-preview" onclick="window.open(this.src)">` : ''}
+                        <div class="req-info">
+                            <div style="display:flex; justify-content:space-between; width:100%; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;">
+                                <span style="font-size:12px; color:#aaa;">Imeandaliwa na: <b style="color:white; text-transform:capitalize;">${tipsterName}</b></span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; width:100%;">
+                                <span style="color:var(--primary); font-weight:bold;">Tsh ${mkeka.price}/=</span>
+                                <span style="font-size:12px; color:#aaa;">${new Date(mkeka.start_datetime).toLocaleString()}</span>
+                            </div>
+                            <div class="bet-codes-grid">
+                                ${mkeka.code_sportybet ? `<div class="bet-code-item"><span>SportyBet:</span> <b>${mkeka.code_sportybet}</b></div>` : ''}
+                                ${mkeka.code_betpawa ? `<div class="bet-code-item"><span>BetPawa:</span> <b>${mkeka.code_betpawa}</b></div>` : ''}
+                                ${mkeka.code_sportpesa ? `<div class="bet-code-item"><span>SportPesa:</span> <b>${mkeka.code_sportpesa}</b></div>` : ''}
+                                ${mkeka.code_betway ? `<div class="bet-code-item"><span>Betway:</span> <b>${mkeka.code_betway}</b></div>` : ''}
+                                ${mkeka.code_betika ? `<div class="bet-code-item"><span>Betika:</span> <b>${mkeka.code_betika}</b></div>` : ''}
+                                ${mkeka.code_sokabet ? `<div class="bet-code-item"><span>Sokabet:</span> <b>${mkeka.code_sokabet}</b></div>` : ''}
+                            </div>
+                            <div style="margin-top:5px; font-size:12px; color:${isVisible ? 'var(--success)' : '#f39c12'}">
+                                Status: <b>${isVisible ? 'TAYARI IPO HEWANI KWA WATEJA' : 'INASUBIRI KURUHUSIWA'}</b>
+                            </div>
+                        </div>
+                        <div class="req-actions">
+                            ${!isVisible ? 
+                                `<button class="btn-sm" style="background:#3498db; color:white;" onclick="approveBet('${mkeka.id}', this)">POST (RUHUSU)</button>` 
+                                : 
+                                `<button class="btn-sm" style="background:var(--success); color:white;" disabled>TAYARI IPO HEWANI ✅</button>`
+                            }
+                            <button class="btn-sm btn-delete" onclick="deleteBet('${mkeka.id}', this)">FUTA MKEKA</button>
+                        </div>
+                    </div>`; }).join('');
+            } else { list.innerHTML = `<p style="color:#555; text-align:center;">Hakuna mikeka mipya.</p>`; }
+        }
+
+        // HII NDIO FUNCTION INAYOZIMA BUTTON MOJA KWA MOJA NA KUTOIRUHUSU KUBONYEZWA TENA
+        // HII NDIO FUNCTION ILIYOREKEBISHWA ILI KUKAMATA MAKOSA YA KIUSALAMA
+        async function approveBet(id, btnElement) {
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "INASUBIRI...";
+            btnElement.disabled = true;
+
+            // Tumeongeza .select() mwishoni ili Supabase iturudishie majibu kama kweli ime-save
+            const { data, error } = await supabaseClient
+                .from('mikeka')
+                .update({ visible: true })
+                .eq('id', id)
+                .select();
+            
+            if (error) {
+                alert("KOSA: Imeshindwa kuruhusu. Maelezo: " + error.message);
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            } else if (data && data.length === 0) {
+                // HAPA NDIPO MTEGO ULIPO: Supabase inakataa kimya kimya kama wewe siyo Admin
+                alert("KOSA LA KIUSALAMA: Mfumo umekukataa! Akaunti yako haina cheo cha 'admin'. Nenda Supabase kwenye table ya 'profiles' ukabadili role yako iwe 'admin'.");
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            } else {
+                // Kama imekubali na kusave kikweli kwenye Database
+                btnElement.innerText = "TAYARI IPO HEWANI ✅";
+                btnElement.style.background = "var(--success)";
+            }
+        }
+        async function deleteBet(id, btnElement) {
+            if(confirm("Una uhakika unataka kufuta kabisa mkeka huu?")) { 
+                btnElement.innerText = "INAFUTA...";
+                btnElement.disabled = true;
+                
+                const { error } = await supabaseClient.from('mikeka').delete().eq('id', id); 
+                
+                if(error) {
+                    alert("Kosa kufuta: " + error.message);
+                    btnElement.innerText = "FUTA MKEKA";
+                    btnElement.disabled = false;
+                } else {
+                    fetchPendingBets(); 
+                }
+            }
+        }
+
+        // --- 3. MATOKEO (EXPIRED BETS) ---
+        async function fetchExpiredBets() {
+            const now = new Date().toISOString();
+            const { data } = await supabaseClient
+                .from('mikeka')
+                .select('*')
+                .lt('start_datetime', now)
+                .order('start_datetime', { ascending: false });
+
+            const list = document.getElementById('expired-list');
+            
+            if (data && data.length > 0) {
+                list.innerHTML = data.map(mkeka => {
+                    const status = mkeka.status || 'PENDING';
+                    let borderColor = '#f39c12';
+                    if(status === 'WON') borderColor = '#2ecc71';
+                    if(status === 'LOST') borderColor = '#e74c3c';
+
+                    return `
+                    <div class="req-card" style="border-left: 4px solid ${borderColor}">
+                        <span class="status-badge" style="background:${borderColor}; color:white;">${status}</span>
+                        ${mkeka.file_url ? `<img src="${mkeka.file_url}" class="bet-img-preview" onclick="window.open(this.src)">` : ''}
+                        
+                        <div class="req-info">
+                            <span style="font-size:12px; color:#aaa;">Ilichezwa: ${new Date(mkeka.start_datetime).toLocaleString()}</span>
+                        </div>
+
+                        <div class="req-actions" style="grid-template-columns: 1fr 1fr;">
+                            <button class="btn-sm btn-approve" onclick="updateBetOutcome('${mkeka.id}', 'WON', this)"><i class="fas fa-check"></i> TIKI</button>
+                            <button class="btn-sm btn-reject" onclick="updateBetOutcome('${mkeka.id}', 'LOST', this)"><i class="fas fa-times"></i> CHANIKA</button>
+                        </div>
+                    </div>`; 
+                }).join('');
+            } else { list.innerHTML = `<p style="color:#555; text-align:center;">Hakuna mikeka iliyoisha muda.</p>`; }
+        }
+
+        async function updateBetOutcome(id, outcome, btnElement) {
+            if(!confirm(`Je una uhakika mkeka huu ume-${outcome}?`)) return;
+            
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "INASUBIRI...";
+            btnElement.disabled = true;
+
+            const { error } = await supabaseClient.from('mikeka').update({ status: outcome }).eq('id', id);
+            
+            if(error) {
+                alert("Error: " + error.message);
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            } else { 
+                fetchExpiredBets(); 
+            }
+        }
+
+        // --- 4. UPLOAD FUNCTION YA JUMLA (AVATAR NA ADS) ---
+        function handlePreview(event, type) {
+            const file = event.target.files[0];
+            if (file) {
+                currentFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(`${type}-preview-img`).src = e.target.result;
+                    document.getElementById(`${type}-preview-box`).style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function uploadToSupabase(type) {
+            if (!currentFile) return;
+            const btn = document.getElementById(`${type}-save-btn`);
+            btn.innerText = "INAPAKIA..."; btn.disabled = true;
+            try {
+                const fileName = `${type}_${Date.now()}.png`;
+                const bucket = type === 'avatar' ? 'avatars' : 'ads';
+                
+                const { error: uploadError } = await supabaseClient.storage.from(bucket).upload(fileName, currentFile);
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = supabaseClient.storage.from(bucket).getPublicUrl(fileName);
+                
+                const table = type === 'avatar' ? 'avatar_pool' : 'ads_pool';
+                const { error: dbError } = await supabaseClient.from(table).insert([{ url: urlData.publicUrl }]);
+                if (dbError) throw dbError;
+
+                alert("Imefanikiwa kupakiwa!"); 
+                location.reload();
+            } catch (err) { 
+                alert("Error: " + err.message); 
+                btn.innerText = "JARIBU TENA"; 
+                btn.disabled = false; 
+            }
+        }
+
+        // --- AVATARS FETCH & DELETE ---
+        async function fetchAvatarPool() {
+            const { data } = await supabaseClient.from('avatar_pool').select('*').order('created_at', { ascending: false });
+            if (data) {
+                document.getElementById('avatar-pool-display').innerHTML = data.map(av => `
+                    <div class="avatar-item">
+                        <img src="${av.url}">
+                        <div class="del-btn" onclick="deleteAvatar('${av.id}')"><i class="fas fa-times"></i></div>
+                    </div>`).join('');
+            }
+        }
+        async function deleteAvatar(id) { if(confirm("Futa Avatar hii?")) { await supabaseClient.from('avatar_pool').delete().eq('id', id); fetchAvatarPool(); } }
+
+        // --- ADS FETCH & DELETE ---
+        async function fetchAdsPool() {
+            const { data } = await supabaseClient.from('ads_pool').select('*').order('created_at', { ascending: false });
+            const container = document.getElementById('ads-pool-display');
+            if (data && container) {
+                container.innerHTML = data.map(ad => `
+                    <div class="avatar-item" style="border-radius: 10px; aspect-ratio: 16/9;">
+                        <img src="${ad.url}" style="border-radius: 10px; width:100%; height:100%; object-fit:cover;">
+                        <div class="del-btn" onclick="deleteAd('${ad.id}')"><i class="fas fa-times"></i></div>
+                    </div>`).join('');
+            }
+        }
+        async function deleteAd(id) { if(confirm("Futa tangazo hili?")) { await supabaseClient.from('ads_pool').delete().eq('id', id); fetchAdsPool(); } }
+
+        // --- TAB SWITCHER ---
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active'); element.classList.add('active');
+            
+            if(tabId === 'finance-tab') { fetchFinanceStats(); fetchWithdrawals(); }
+            if(tabId === 'bets-tab') fetchPendingBets();
+            if(tabId === 'results-tab') fetchExpiredBets(); 
+            if(tabId === 'avatar-tab') fetchAvatarPool();
+            if(tabId === 'ads-tab') fetchAdsPool();
+        }
+
+        window.onload = () => { fetchFinanceStats(); fetchWithdrawals(); };
+    </script>
+</body>
+</html>

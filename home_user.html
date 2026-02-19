@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ushindi Tips | Nyumbani</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #f1c40f; 
+            --dark-bg: #121212;
+            --card-bg: #1e1e1e;
+            --text-white: #ffffff;
+            --text-gray: #b3b3b3;
+            --green: #2ecc71;
+            --red: #e74c3c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--dark-bg); color: var(--text-white); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* --- HEADER & SEARCH --- */
+        .header { padding: 15px; background: var(--dark-bg); position: sticky; top: 0; z-index: 10; }
+        .search-box { background: var(--card-bg); border-radius: 30px; padding: 10px 20px; display: flex; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .search-box input { background: transparent; border: none; color: white; margin-left: 10px; width: 100%; outline: none; font-size: 14px; }
+
+        /* --- SCROLLABLE CONTENT AREA --- */
+        .content { flex: 1; overflow-y: auto; padding-bottom: 90px; }
+
+        /* --- MABANGO (BANNERS) --- */
+        .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 15px; padding: 15px; -webkit-overflow-scrolling: touch; }
+        .banner-container::-webkit-scrollbar { display: none; }
+        .banner-card { min-width: 90%; height: 160px; background: #333; border-radius: 15px; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .banner-card img { width: 100%; height: 100%; object-fit: cover; opacity: 1; }
+        .banner-text { position: absolute; font-weight: bold; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+
+        /* --- SECTIONS HEADERS --- */
+        .section-title { padding: 0 15px; font-size: 16px; font-weight: 600; margin-top: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        
+        /* --- TIPSTER LIST --- */
+        .tipster-list { padding: 0 15px; }
+        .tipster-card { background: var(--card-bg); padding: 15px; border-radius: 15px; display: flex; align-items: center; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; transition: 0.2s; }
+        .tipster-card:active { transform: scale(0.98); }
+        .t-img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); margin-right: 15px; }
+        .t-info { flex: 1; }
+        .t-name { font-weight: bold; font-size: 15px; display: block; text-transform: capitalize; }
+        .t-phone { font-size: 12px; color: var(--green); display: block; margin-top: 2px; font-weight: 500; } /* HAPA NDIPO NAMBA INAONEKANA */
+        .t-stats { font-size: 11px; color: var(--text-gray); display: block; margin-top: 4px; }
+        .t-accuracy { background: rgba(241, 196, 15, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; }
+
+        /* --- PROFILE VIEW --- */
+        #tipster-profile-view { display: none; background: var(--dark-bg); min-height: 100%; padding: 15px; }
+        .profile-header { display: flex; align-items: center; margin-bottom: 20px; }
+        .back-btn { font-size: 20px; padding: 10px; cursor: pointer; margin-right: 10px; }
+        
+        /* --- BET CARDS --- */
+        .bet-card { background: var(--card-bg); border-radius: 15px; overflow: hidden; margin-bottom: 15px; position: relative; border-left: 4px solid var(--primary); }
+        .bet-header { padding: 15px; display: flex; justify-content: space-between; border-bottom: 1px dashed #333; }
+        .bet-body { padding: 15px; }
+        .bet-footer { background: #252525; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .countdown { color: var(--red); font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 5px; }
+        
+        /* --- HISTORY --- */
+        .status-badge { padding: 5px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; text-transform: uppercase; }
+        .status-win { background: rgba(46, 204, 113, 0.2); color: var(--green); border: 1px solid var(--green); }
+        .status-loss { background: rgba(231, 76, 60, 0.2); color: var(--red); border: 1px solid var(--red); }
+        .filter-tabs { display: flex; gap: 10px; padding: 0 15px 15px 15px; }
+        .f-tab { padding: 8px 16px; background: var(--card-bg); border-radius: 20px; font-size: 12px; color: var(--text-gray); cursor: pointer; border: 1px solid #333; }
+        .f-tab.active { background: var(--primary); color: black; border-color: var(--primary); font-weight: bold; }
+
+        /* --- SETTINGS --- */
+        .settings-list { list-style: none; padding: 0 15px; }
+        .settings-list li { padding: 18px 0; border-bottom: 1px solid #333; display: flex; align-items: center; cursor: pointer; font-size: 15px; }
+        .settings-list li i { width: 35px; color: var(--primary); font-size: 18px; }
+        .settings-list li span { flex: 1; }
+        .settings-list li .arrow { color: #555; width: auto; font-size: 14px; }
+
+        /* --- BOTTOM NAV --- */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 75px; background-color: var(--card-bg); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -5px 15px rgba(0,0,0,0.3); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-gray); text-decoration: none; cursor: pointer; flex: 1; }
+        .nav-item i { font-size: 20px; margin-bottom: 4px; }
+        .nav-item span { font-size: 10px; } 
+        .nav-item.active { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <main class="content" id="main-content">
+        
+        <div id="home-view">
+            <div class="header">
+                <div class="search-box">
+                    <i class="fas fa-search" style="color: #777;"></i>
+                    <input type="text" placeholder="Tafuta Tipster hapa..." onkeyup="filterTipsters(this.value)">
+                </div>
+            </div>
+
+            <div class="banner-container" id="dynamic-banners">
+                <p style="padding: 20px; color: #777;">Inapakia matangazo...</p>
+            </div>
+
+            <div class="section-title">
+                <span>Best Tipsters 🔥</span>
+                <span style="font-size:12px; color:var(--primary);">Accuracy</span>
+            </div>
+            <div class="tipster-list" id="best-tipsters-list"><p style="text-align:center; color:#777;">Inatafuta tipsters...</p></div>
+
+            <div class="section-title"><span>Other Tipsters</span></div>
+            <div class="tipster-list" id="other-tipsters-list"></div>
+        </div>
+
+        <div id="tipster-profile-view">
+            <div class="profile-header">
+                <i class="fas fa-arrow-left back-btn" onclick="closeProfile()"></i>
+                <div style="display:flex; align-items:center;">
+                    <img id="p-img" src="" class="t-img" style="width:40px; height:40px;">
+                    <div>
+                        <span id="p-name" style="font-weight:bold; display:block;">Jina</span>
+                        <span id="p-phone" style="font-size:12px; color:var(--green); font-weight:bold; display:block;">Namba</span> <span id="p-acc" style="font-size:12px; color:var(--primary);">Accuracy: 0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title"><span>Mikeka Iliyo Hewani</span></div>
+            <div id="p-active-bets"><p style="text-align:center; color:#777;">Hakuna mikeka hewani</p></div>
+
+            <div class="section-title" style="margin-top:20px;"><span>History (Matokeo)</span></div>
+            <div id="p-history-bets"><p style="text-align:center; color:#777;">Hakuna historia</p></div>
+        </div>
+
+        <div id="betslip-view" style="display:none; padding:15px;">
+            <h2 style="margin-bottom:15px; font-size:20px;">Mikeka Inayoendelea</h2>
+            <div id="all-active-bets"><p style="text-align:center; color:#777;">Hakuna mikeka inayoendelea</p></div>
+        </div>
+
+        <div id="history-view" style="display:none; padding-top:15px;">
+            <h2 style="padding:0 15px 15px 15px; font-size:20px;">Historia ya Mikeka</h2>
+            <div class="filter-tabs">
+                <div class="f-tab active" onclick="filterHistory('all', this)">Yote</div>
+                <div class="f-tab" onclick="filterHistory('won', this)">Ushindi</div>
+                <div class="f-tab" onclick="filterHistory('lost', this)">Hasara</div>
+            </div>
+            <div id="history-list" style="padding:0 15px;"></div>
+        </div>
+
+        <div id="settings-view" style="display:none;">
+            <div style="padding:40px 20px; text-align:center; background:var(--card-bg); margin-bottom:10px; border-bottom: 2px solid var(--primary);">
+                <i class="fas fa-user-circle" style="font-size: 60px; color: var(--primary); margin-bottom: 10px;"></i>
+                <h3 id="user-phone-display" style="letter-spacing: 1px;">Inaleta Namba...</h3>
+                <p style="color:#777; font-size:12px; margin-top:5px;">Akaunti ya Mtumiaji</p>
+            </div>
+            
+            <ul class="settings-list">
+                <li><i class="fas fa-receipt"></i> <span>Mikeka Niliyonunua</span> <i class="fas fa-chevron-right arrow"></i></li>
+                <li><i class="fas fa-user-shield"></i> <span>Sera ya Faragha</span> <i class="fas fa-chevron-right arrow"></i></li>
+                <li><i class="fas fa-file-contract"></i> <span>Vigezo na Masharti</span> <i class="fas fa-chevron-right arrow"></i></li>
+                <li><i class="fas fa-headset"></i> <span>Msaada kwa Wateja</span> <i class="fas fa-chevron-right arrow"></i></li>
+                <li onclick="logoutUser()" style="color:var(--red);"><i class="fas fa-sign-out-alt" style="color:var(--red);"></i> <span style="font-weight:bold;">Ondoka (Logout)</span></li>
+            </ul>
+        </div>
+
+    </main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('home-view', this)"><i class="fas fa-home"></i> <span>Nyumbani</span></div>
+        <div class="nav-item" onclick="switchTab('betslip-view', this)"><i class="fas fa-ticket-alt"></i> <span>Mikeka</span></div>
+        <div class="nav-item" onclick="switchTab('history-view', this)"><i class="fas fa-history"></i> <span>Historia</span></div>
+        <div class="nav-item" onclick="switchTab('settings-view', this)"><i class="fas fa-cog"></i> <span>Mipangilio</span></div>
+    </nav>
+
+    <script>
+        const SUPABASE_URL = "https://hgszvjuzjwmogmnslzkg.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnc3p2anV6andtb2dtbnNsemtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTAyMDAsImV4cCI6MjA4NTcyNjIwMH0.aYxh_5KSuaJkI2kgdMbRGdntDuLu8-saYMUqkxm1GUE";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let globalTipsters = [];
+        let globalBets = [];
+
+        async function checkAuth() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.replace("user.html"); 
+                return;
+            }
+            document.getElementById('user-phone-display').innerText = session.user.phone;
+            fetchDataFromSupabase();
+        }
+
+        async function fetchAds() {
+            try {
+                const { data: ads, error } = await supabaseClient
+                    .from('ads_pool')
+                    .select('url')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const bannerContainer = document.getElementById('dynamic-banners');
+                if (ads && ads.length > 0) {
+                    bannerContainer.innerHTML = ads.map(ad => `
+                        <div class="banner-card">
+                            <img src="${ad.url}" alt="Tangazo">
+                        </div>
+                    `).join('');
+                } else {
+                    bannerContainer.innerHTML = `
+                        <div class="banner-card" style="background: linear-gradient(45deg, #e74c3c, #8e44ad);"><span class="banner-text">Shinda Kila Siku</span></div>
+                        <div class="banner-card" style="background: linear-gradient(45deg, #2ecc71, #f1c40f);"><span class="banner-text">Odds Kubwa</span></div>
+                    `;
+                }
+            } catch (error) { console.error("Kosa kuvuta matangazo:", error.message); }
+        }
+
+        async function fetchDataFromSupabase() {
+            try {
+                fetchAds();
+
+                // 1. VUTA TIPSTERS WOTE KUTOKA KWENYE PROFILES WENYE ROLE = TIPSTER
+                const { data: tipstersData, error: tError } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('role', 'tipster');
+
+                if (tError) throw tError;
+
+                // 2. VUTA MIKEKA YOTE AMBAYO IPO HEWANI (Au iliyoisha muda) ILI KUPIGA HESABU
+                const { data: betsData, error: bError } = await supabaseClient
+                    .from('mikeka')
+                    .select('*, profiles(full_name, avatar_url)')
+                    .order('created_at', { ascending: false });
+
+                if (bError) throw bError;
+
+                globalBets = betsData || [];
+                
+                // 3. PIGA HESABU ZA ACCURACY NA KUPANGA DATA ZA TIPSTERS WOTE WANAOONEKANA
+                globalTipsters = (tipstersData || []).map(tipster => {
+                    const allTipsterBets = globalBets.filter(b => b.user_id === tipster.id);
+                    const finishedBets = allTipsterBets.filter(b => b.status === 'WON' || b.status === 'LOST');
+                    const wonBets = finishedBets.filter(b => b.status === 'WON').length;
+                    
+                    let accuracy = 0;
+                    if (finishedBets.length > 0) {
+                        accuracy = Math.round((wonBets / finishedBets.length) * 100);
+                    }
+
+                    return {
+                        ...tipster,
+                        accuracy: accuracy,
+                        total_posted: allTipsterBets.length, 
+                        finished_bets: finishedBets.length, 
+                        total_won: wonBets, 
+                        avatar_url: tipster.avatar_url || 'https://i.pravatar.cc/150?img=11',
+                        full_name: tipster.full_name || 'Tipster Asiyejulikana',
+                        phone_number: tipster.phone_number || 'Namba imefichwa' // TUNAIVUTA HAPA
+                    };
+                });
+
+                renderTipsters();
+            } catch (error) {
+                console.error("Kosa kuvuta data:", error.message);
+                document.getElementById('best-tipsters-list').innerHTML = `<p style="color:red; text-align:center;">Kosa la mtandao. Jaribu tena.</p>`;
+            }
+        }
+
+        function renderTipsters() {
+            const bestList = document.getElementById('best-tipsters-list');
+            const otherList = document.getElementById('other-tipsters-list');
+            bestList.innerHTML = ''; otherList.innerHTML = '';
+
+            const sorted = [...globalTipsters].sort((a, b) => b.accuracy - a.accuracy || b.total_posted - a.total_posted);
+
+            sorted.forEach(t => {
+                const card = `
+                    <div class="tipster-card" onclick="openTipsterProfile('${t.id}')">
+                        <img src="${t.avatar_url}" class="t-img">
+                        <div class="t-info">
+                            <span class="t-name">${t.full_name}</span>
+                            <span class="t-phone"><i class="fas fa-phone-alt" style="font-size:10px;"></i> ${t.phone_number}</span>
+                            <span class="t-stats">Mikeka yote: ${t.total_posted} | Imeshinda: ${t.total_won}</span>
+                        </div>
+                        <span class="t-accuracy">${t.accuracy}%</span>
+                    </div>
+                `;
+                
+                if(t.accuracy >= 70 && t.finished_bets > 0) {
+                    bestList.innerHTML += card;
+                } else {
+                    otherList.innerHTML += card;
+                }
+            });
+
+            if(bestList.innerHTML === '') bestList.innerHTML = '<p style="text-align:center; color:#777; font-size:13px; padding:10px;">Hakuna Top Tipster bado.</p>';
+            if(otherList.innerHTML === '') otherList.innerHTML = '<p style="text-align:center; color:#777; font-size:13px; padding:10px;">Hakuna Tipsters wengine.</p>';
+        }
+
+        function openTipsterProfile(tipsterId) {
+            const tipster = globalTipsters.find(t => t.id === tipsterId);
+            const tBets = globalBets.filter(b => b.user_id === tipsterId && b.visible === true); 
+
+            document.getElementById('p-img').src = tipster.avatar_url;
+            document.getElementById('p-name').innerText = tipster.full_name;
+            document.getElementById('p-phone').innerText = tipster.phone_number; // HAPA PIA
+            document.getElementById('p-acc').innerText = "Accuracy: " + tipster.accuracy + "%";
+
+            const activeDiv = document.getElementById('p-active-bets');
+            const historyDiv = document.getElementById('p-history-bets');
+            activeDiv.innerHTML = ''; historyDiv.innerHTML = '';
+
+            tBets.forEach(b => {
+                let company = b.code_sportybet ? "SportyBet" : b.code_betpawa ? "Betpawa" : b.code_sportpesa ? "Sportpesa" : "Kampuni";
+
+                if(b.status === 'PENDING') {
+                    activeDiv.innerHTML += `
+                        <div class="bet-card">
+                            <div class="bet-header">
+                                <span style="font-weight:bold; color:#777;">Code imefichwa</span>
+                                <span style="background:black; color:white; padding:2px 8px; border-radius:5px;">Odds ${b.odds}</span>
+                            </div>
+                            <div class="bet-body">
+                                <div style="text-align:center;">
+                                    <h2 style="color:var(--primary);">TZS ${b.price}/=</h2>
+                                    <button style="margin-top:10px; background:var(--primary); border:none; padding:8px 20px; border-radius:20px; font-weight:bold; color:black;">NUNUA SASA</button>
+                                </div>
+                            </div>
+                            <div class="bet-footer">
+                                <span>${company}</span>
+                                <span class="countdown" data-time="${b.start_datetime}"><i class="far fa-clock"></i> --:--</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const badge = b.status === 'WON' ? '<span class="status-badge status-win">WIN ✅</span>' : '<span class="status-badge status-loss">LOSS ❌</span>';
+                    const dateStr = new Date(b.start_datetime).toLocaleDateString();
+                    
+                    historyDiv.innerHTML += `
+                         <div class="bet-card" style="border-left: 4px solid ${b.status === 'WON' ? 'var(--green)' : 'var(--red)'}; cursor:pointer;">
+                            <div class="bet-header"><span>${dateStr}</span>${badge}</div>
+                            <div class="bet-body" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div><span style="display:block; font-size:12px; color:#777;">${company}</span><span style="font-weight:bold; font-size:18px;">Odds ${b.odds}</span></div>
+                                <i class="fas fa-chevron-right" style="color:#555;"></i>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            if(activeDiv.innerHTML === '') activeDiv.innerHTML = '<p style="text-align:center; color:#777;">Hakuna mikeka hewani</p>';
+            if(historyDiv.innerHTML === '') historyDiv.innerHTML = '<p style="text-align:center; color:#777;">Hakuna historia</p>';
+
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('tipster-profile-view').style.display = 'block';
+            window.scrollTo(0,0);
+        }
+
+        function closeProfile() {
+            document.getElementById('tipster-profile-view').style.display = 'none';
+            document.getElementById('home-view').style.display = 'block';
+        }
+
+        function renderBetslipTab() {
+            const container = document.getElementById('all-active-bets');
+            container.innerHTML = '';
+            
+            const activeBets = globalBets.filter(b => b.status === 'PENDING' && b.visible === true);
+
+            activeBets.forEach(b => {
+                let company = b.code_sportybet ? "SportyBet" : b.code_betpawa ? "Betpawa" : "Kampuni";
+                let tName = (b.profiles && b.profiles.full_name) ? b.profiles.full_name : "Tipster Asiyejulikana";
+                let tImg = (b.profiles && b.profiles.avatar_url) ? b.profiles.avatar_url : "https://i.pravatar.cc/150?img=11";
+
+                container.innerHTML += `
+                     <div class="bet-card">
+                        <div class="bet-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap: 10px;">
+                                <img src="${tImg}" style="width:38px; height:38px; border-radius:50%; border: 2px solid var(--primary); object-fit:cover;">
+                                <div>
+                                    <span style="font-size:14px; font-weight:bold; display:block; color:white; text-transform:capitalize;">${tName}</span>
+                                    <span style="font-size:11px; color:var(--text-gray);">Tipster Rasmi</span>
+                                </div>
+                            </div>
+                            <span style="background:var(--primary); padding:4px 10px; border-radius:8px; font-size:12px; font-weight:bold; color:black;">Odds ${b.odds}</span>
+                        </div>
+                        <div class="bet-body" style="text-align:center; padding-top: 10px;">
+                             <p style="font-size:12px; color:#888; margin-bottom:5px;">Gharama ya Mkeka huu</p>
+                             <h2 style="color:var(--green); font-size: 24px; margin-bottom: 15px;">TZS ${b.price}/=</h2>
+                             <button style="width:100%; background:var(--primary); border:none; padding:12px; border-radius:12px; font-weight:bold; color:black; font-size:15px; cursor:pointer;">NUNUA MKEKA SASA</button>
+                        </div>
+                        <div class="bet-footer">
+                            <span><i class="fas fa-shield-alt" style="color:var(--primary);"></i> ${company}</span>
+                            <span class="countdown" data-time="${b.start_datetime}"><i class="far fa-clock"></i> --:--</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if(container.innerHTML === '') container.innerHTML = '<p style="text-align:center; color:#777; padding: 20px;">Hakuna mikeka mipya hewani kwa sasa.</p>';
+        }
+
+        function renderHistoryTab(filter = 'all') {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+
+            let historyBets = globalBets.filter(b => (b.status === 'WON' || b.status === 'LOST') && b.visible === true);
+
+            if(filter === 'won') historyBets = historyBets.filter(b => b.status === 'WON');
+            if(filter === 'lost') historyBets = historyBets.filter(b => b.status === 'LOST');
+
+            historyBets.forEach(b => {
+                let company = b.code_sportybet ? "SportyBet" : b.code_betpawa ? "Betpawa" : "Kampuni";
+                let tName = b.profiles && b.profiles.full_name ? b.profiles.full_name : "Tipster Asiyejulikana";
+                let tImg = b.profiles && b.profiles.avatar_url ? b.profiles.avatar_url : "https://i.pravatar.cc/150?img=11";
+                const dateStr = new Date(b.start_datetime).toLocaleDateString();
+
+                const badge = b.status === 'WON' ? '<span class="status-badge status-win">WIN</span>' : '<span class="status-badge status-loss">LOSS</span>';
+                
+                container.innerHTML += `
+                    <div class="bet-card" style="border-left: 4px solid ${b.status === 'WON' ? 'var(--green)' : 'var(--red)'};">
+                        <div class="bet-header">
+                            <div style="display:flex; align-items:center;">
+                                <img src="${tImg}" style="width:25px; height:25px; border-radius:50%; margin-right:8px; object-fit:cover;">
+                                <span style="font-size:13px; font-weight:bold;">${tName}</span>
+                            </div>
+                            ${badge}
+                        </div>
+                        <div class="bet-body" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <span style="display:block; font-size:12px; color:#777;">${company} - ${dateStr}</span>
+                                <span style="font-weight:bold; font-size:18px;">Odds ${b.odds}</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <button style="background:transparent; border:1px solid #555; color:white; padding:5px 15px; border-radius:20px; font-size:12px;">Picha</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if(container.innerHTML === '') container.innerHTML = '<p style="text-align:center; color:#777;">Hakuna historia bado.</p>';
+        }
+
+        async function logoutUser() {
+            if(confirm("Una uhakika unataka kuondoka?")) {
+                await supabaseClient.auth.signOut();
+                window.location.replace("user.html");
+            }
+        }
+
+        function filterHistory(type, element) {
+            document.querySelectorAll('.f-tab').forEach(t => t.classList.remove('active'));
+            element.classList.add('active');
+            renderHistoryTab(type);
+        }
+
+        function switchTab(viewId, element) {
+            const views = ['home-view', 'betslip-view', 'history-view', 'settings-view'];
+            views.forEach(id => document.getElementById(id).style.display = 'none');
+            
+            document.getElementById('tipster-profile-view').style.display = 'none'; 
+            document.getElementById(viewId).style.display = 'block';
+
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            element.classList.add('active');
+
+            if(viewId === 'betslip-view') renderBetslipTab();
+            if(viewId === 'history-view') renderHistoryTab('all');
+        }
+
+        setInterval(() => {
+            document.querySelectorAll('.countdown').forEach(el => {
+                const endTime = new Date(el.getAttribute('data-time')).getTime();
+                const now = new Date().getTime();
+                const distance = endTime - now;
+                if (distance < 0) { el.innerHTML = "EXPIRED"; el.style.color = "gray"; } 
+                else {
+                    const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const s = Math.floor((distance % (1000 * 60)) / 1000);
+                    el.innerHTML = `<i class="far fa-clock"></i> ${h}h ${m}m ${s}s`;
+                }
+            });
+        }, 1000);
+
+        function filterTipsters(query) {
+            const lowerQ = query.toLowerCase();
+            document.querySelectorAll('.tipster-card').forEach(card => {
+                const name = card.querySelector('.t-name').innerText.toLowerCase();
+                card.style.display = name.includes(lowerQ) ? 'flex' : 'none';
+            });
+        }
+
+        checkAuth();
+
+    </script>
+</body>
+</html>
